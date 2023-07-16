@@ -52,6 +52,7 @@ A Terminal based Calculator built with Java
 |`e`|Euler's Number|
 |`pi`|<code>&#960;</code>|
 |`n!`|Factorial of `n`|
+|`1.6E-19`|$1.6 \times 10^{-19}$|
 |n `C` r|$\frac{n!}{(n-r)!~r!}$|
 |n `P` r|$\frac{n!}{(n-r)!}$|
 |a `%` b|Modulus or, Remainder|

@@ -1,33 +1,10 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
-
-class MyException extends Exception {
-    public MyException(String m) {
-        super(m);
-    }
-}
-
-class List {
-    String node;
-    List link;
-
-    public List(String s) {
-        node = s;
-        link = null;
-
-    }
-}
-
-class Double2 {
-    double num;
-    Double2 link;
-
-    public Double2(double n) {
-        num = n;
-        link = null;
-    }
-}
+import mypkg.MyException;
+import mypkg.StrList;
+import mypkg.ChrStack;
+import mypkg.DblStack;
 
 public class Calculator {
     private static double ans;
@@ -39,14 +16,6 @@ public class Calculator {
     private static char[] arrOp = { '!', '%', '*', '+', '-', '/', 'C', 'P', '^', 'n', 'u', '|' };
     // Tree Level
     private static int[] idOp = { 0, 4, 4, 5, 5, 4, 1, 1, 2, 3, 3, 2 };
-
-    private static void dispList(List show) {
-        while (show != null) {
-            System.out.print(show.node + " ");
-            show = show.link;
-        }
-        System.out.println();
-    }
 
     private static boolean isFunc(char ch) {
         int f = -1, m = f, l = 0, u = arrFn.length - 1;
@@ -134,9 +103,9 @@ public class Calculator {
 
     private static double fact(double n) throws MyException {
         if (n < 0)
-            throw new MyException("Factorial can't be computed for NEGATIVE number(s), EXITING...");
+            throw new MyException("Factorial can't be computed for NEGATIVE number(s)");
         else if ((n - (long) n) != 0)
-            throw new MyException("Factorial can't be computed for FRACTIONAL number(s), EXITING...");
+            throw new MyException("Factorial can't be computed for FRACTIONAL number(s)");
         double f = 1;
         for (double j = 1; j <= n; j++)
             f *= j;
@@ -153,7 +122,7 @@ public class Calculator {
             res = a * b;
         else if (ch == '/') {
             if (b == 0)
-                throw new MyException("Division by ZERO encountered, EXITING...");
+                throw new MyException("Division by ZERO encountered !");
             res = a / b;
         } else if (ch == '^')
             res = Math.pow(a, b);
@@ -179,46 +148,51 @@ public class Calculator {
                 res = fact(a) / fact(a - b);
         } else if (ch == '%') {
             if (b == 0)
-                throw new MyException("Division by ZERO encountered, EXITING...");
+                throw new MyException("Division by ZERO encountered !");
             res = (long) Math.round(a) % (long) Math.round(b);
         }
         return res;
     }
 
-    private static double getResult(List pol) throws MyException {
-        Double2 stack = null;
-        while (pol != null) {
-            char ch = pol.node.charAt(0);
+    private static double getResult(StrList pol) throws MyException {
+        DblStack stack = null;
+        while (!pol.isEmpty()) {
+            char ch = pol.getStart().charAt(0);
             if (isBinary(ch)) {
-                stack.link.num = calc(stack.link.num, ch, stack.num);
-                stack = stack.link;
-            } else if (ch == 'n')
-                stack.num = -stack.num;
-            else if (ch == '!') {
-                stack.num = fact(stack.num);
+                double b = stack.getTop();
+                stack.pop();
+                double a = stack.getTop();
+                stack.pop();
+                stack.push(calc(a, ch, b));
+            } else if (ch == 'n') {
+                double n = -stack.getTop();
+                stack.pop();
+                stack.push(n);
+            } else if (ch == '!') {
+                double n = fact(stack.getTop());
+                stack.pop();
+                stack.push(n);
             } else if (ch == 'u')
                 ;
             else {
-                Double2 nptr = new Double2(parseDouble2(pol.node));
+                double n = parseDoubleM(pol.getStart());
                 if (stack == null)
-                    stack = nptr;
-                else {
-                    nptr.link = stack;
-                    stack = nptr;
-                }
+                    stack = new DblStack(n);
+                else
+                    stack.push(n);
             }
-            pol = pol.link;
+            pol.remove();
         }
-        return stack.num;
+        return stack.getTop();
     }
 
     private static void invalidExpr() throws MyException {
-        throw new MyException("Invalid expression entered, EXITING . . .");
+        throw new MyException("Invalid EXPRESSION !");
     }
 
-    private static List getExpr(String str) throws MyException {
+    private static StrList getExpr(String str) throws MyException {
         str = "(" + str + ")";
-        List expr = new List("("), p = expr;
+        StrList expr = new StrList("(");
         char cp = '(', ch;
         int i = 1, tmp = 0, l = str.length();
         while (i < l) {
@@ -227,28 +201,29 @@ public class Calculator {
             ch = str.charAt(i);
             tmp = i;
             if (Character.isDigit(ch)) {
-                String n = String.valueOf(ch);
+                StringBuffer n = new StringBuffer();
+                n.append(ch);
                 cp = ch;
                 i++;
                 ch = str.charAt(i);
                 while (Character.isDigit(ch) || ch == '.' || ch == 'E'
                         || ((ch == '-' || ch == '+') && cp == 'E')) {
-                    n += ch;
+                    n.append(ch);
                     cp = ch;
                     i++;
                     ch = str.charAt(i);
                 }
-                p.link = new List(n);
-                p = p.link;
+                expr.add(n.toString());
             } else if (ch == '.') {
-                String n = String.valueOf(ch);
+                StringBuffer n = new StringBuffer();
+                n.append(ch);
                 cp = ch;
                 int t = i;
                 i++;
                 ch = str.charAt(i);
                 while (Character.isDigit(ch) || ch == 'E'
                         || ((ch == '-' || ch == '+') && cp == 'E')) {
-                    n += ch;
+                    n.append(ch);
                     cp = ch;
                     i++;
                     ch = str.charAt(i);
@@ -257,49 +232,42 @@ public class Calculator {
                     i = t;
                     continue;
                 }
-                p.link = new List(n);
-                p = p.link;
+                expr.add(n.toString());
             } else if (ch == 'e') {
-                p.link = new List("e");
-                p = p.link;
+                expr.add("e");
                 cp = ch;
                 i++;
             } else if (isFunc(ch)) {
-                List stack = null;
-                String n = String.valueOf(ch);
+                ChrStack stack = null;
+                StringBuffer n = new StringBuffer();
+                n.append(ch);
                 i++;
                 while (i < l) {
                     ch = str.charAt(i);
-                    n += ch;
+                    n.append(ch);
                     i++;
                     if (ch == '(') {
                         if (stack == null)
-                            stack = new List("(");
-                        else {
-                            List nptr = new List("(");
-                            nptr.link = stack;
-                            stack = nptr;
-                        }
+                            stack = new ChrStack(ch);
+                        else
+                            stack.push(ch);
                     } else if (ch == ')') {
                         if (stack == null)
                             invalidExpr();
-                        stack = stack.link;
-                        if (stack == null) {
+                        stack.pop();
+                        if (stack.isEmpty()) {
                             cp = ch;
                             break;
                         }
                     }
                 }
-                p.link = new List(n);
-                p = p.link;
-            } else if (str.substring(i).startsWith("pi")) {
-                p.link = new List("pi");
-                p = p.link;
+                expr.add(n.toString());
+            } else if (str.startsWith("pi", i)) {
+                expr.add("pi");
                 cp = 'i';
                 i += 2;
             } else if (ch == '(' || ch == ')') {
-                p.link = new List(String.valueOf(ch));
-                p = p.link;
+                expr.add(String.valueOf(ch));
                 cp = ch;
                 i++;
             } else if (isValidOp(ch)) {
@@ -316,13 +284,11 @@ public class Calculator {
                     continue;
                 else
                     k = ch;
-                p.link = new List(String.valueOf(k));
-                p = p.link;
+                expr.add(String.valueOf(k));
                 cp = ch;
                 i++;
-            } else if (str.substring(i).startsWith("ans")) {
-                p.link = new List("ans");
-                p = p.link;
+            } else if (str.startsWith("ans", i)) {
+                expr.add("ans");
                 cp = 's';
                 i += 3;
             }
@@ -330,56 +296,46 @@ public class Calculator {
         return expr;
     }
 
-    private static List getPolish(List expr) {
-        List stack = null, pol = null, p = null;
-        while (expr != null) {
-            char ch = expr.node.charAt(0);
-            if (ch == '(') {
-                List nptr = new List("(");
+    private static StrList getPolish(StrList expr) {
+        ChrStack stack = null;
+        StrList pol = null;
+        while (!expr.isEmpty()) {
+            String st = expr.getStart();
+            char ch = st.charAt(0);
+            if (ch == '(')
                 if (stack == null)
-                    stack = nptr;
-                else {
-                    nptr.link = stack;
-                    stack = nptr;
-                }
-            } else if (findOp(ch) >= 0) {
-                char cp = stack.node.charAt(0);
+                    stack = new ChrStack(ch);
+                else
+                    stack.push(ch);
+            else if (findOp(ch) >= 0) {
+                char cp = stack.getTop();
                 while (cp != '(' && isPrior(ch, cp)) {
-                    p.link = new List(String.valueOf(cp));
-                    p = p.link;
-                    stack = stack.link;
-                    cp = stack.node.charAt(0);
+                    pol.add(String.valueOf(cp));
+                    stack.pop();
+                    cp = stack.getTop();
                 }
-                List nptr = new List(String.valueOf(ch));
-                nptr.link = stack;
-                stack = nptr;
+                stack.push(ch);
             } else if (ch == ')') {
-                char cp = stack.node.charAt(0);
+                char cp = stack.getTop();
                 while (cp != '(') {
-                    p.link = new List(String.valueOf(cp));
-                    p = p.link;
-                    stack = stack.link;
-                    cp = stack.node.charAt(0);
+                    pol.add(String.valueOf(cp));
+                    stack.pop();
+                    cp = stack.getTop();
                 }
-                stack = stack.link;
-            } else {
-                if (pol == null) {
-                    pol = new List(expr.node);
-                    p = pol;
-                } else {
-                    p.link = new List(expr.node);
-                    p = p.link;
-                }
-            }
-            expr = expr.link;
+                stack.pop();
+            } else if (pol == null)
+                pol = new StrList(st);
+            else
+                pol.add(st);
+            expr.remove();
         }
         numPost++;
         if (numPost == 0) {
             System.out.println("\nEquivalent POSTFIX EXPRESSION is :\n");
-            dispList(pol);
+            pol.display();
         } else {
             System.out.println("\nSub-POSTFIX EXPRESSION " + numPost + " is :\n");
-            dispList(pol);
+            pol.display();
         }
         return pol;
     }
@@ -411,7 +367,7 @@ public class Calculator {
         return b;
     }
 
-    private static double parseDouble2(String p) throws MyException {
+    private static double parseDoubleM(String p) throws MyException {
         char ch = p.charAt(0);
         double num = 0;
         if (Character.isDigit(ch) || ch == '.') {
@@ -435,13 +391,13 @@ public class Calculator {
                 if (isMath(p))
                     num = Math.log10(getResult(getPolish(getExpr(p))));
                 else
-                    num = Math.log10(parseDouble2(p.substring(skipParen(p))));
+                    num = Math.log10(parseDoubleM(p.substring(skipParen(p))));
             } else if (k == 'n') {
                 p = p.substring(i);
                 if (isMath(p))
                     num = Math.log(getResult(getPolish(getExpr(p))));
                 else
-                    num = Math.log(parseDouble2(p.substring(skipParen(p))));
+                    num = Math.log(parseDoubleM(p.substring(skipParen(p))));
             } else
                 invalidExpr();
         } else if (ch == 's' || ch == 'c' || ch == 't') {
@@ -463,7 +419,7 @@ public class Calculator {
             if (isMath(p))
                 ang = getResult(getPolish(getExpr(p)));
             else
-                ang = parseDouble2(p.substring(skipParen(p)));
+                ang = parseDoubleM(p.substring(skipParen(p)));
             if (ti == 0 && trad == 0 && th == 0)
                 ang = Math.PI / 180 * ang;
             else if (ti == 1)
@@ -505,7 +461,7 @@ public class Calculator {
             if (isMath(p))
                 ang = getResult(getPolish(getExpr(p)));
             else
-                ang = parseDouble2(p.substring(skipParen(p)));
+                ang = parseDoubleM(p.substring(skipParen(p)));
             if (ch == 'r')
                 num = Math.PI * ang / 180;
             else
@@ -534,7 +490,7 @@ public class Calculator {
                 }
             }
             try {
-                List post = getPolish(getExpr(str));
+                StrList post = getPolish(getExpr(str));
                 ans = getResult(post);
                 System.out.println("\nThe RESULT of the EXPRESSION is = " + ans);
             } catch (Exception e) {
